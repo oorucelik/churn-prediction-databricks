@@ -1,0 +1,49 @@
+version: 2
+
+models:
+  - name: dim_date
+    description: "Date dimension covering 2023-2027."
+    columns:
+      - name: date_day
+        description: "Calendar date"
+        data_tests:
+          - unique
+          - not_null
+
+  - name: dim_customer
+    description: "Customer dimension with age banding, genre preferences, and activity level"
+    columns:
+      - name: customer_key
+        description: "Surrogate key"
+        data_tests:
+          - unique
+          - not_null
+      - name: customer_id
+        description: "Natural key"
+        data_tests:
+          - unique
+          - not_null
+      - name: plan_type
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ["basic", "standard", "premium"]
+
+  - name: dim_content
+    description: "Content dimension from TMDB with rating tiers and age buckets"
+    columns:
+      - name: content_key
+        description: "Surrogate key"
+        data_tests: 
+          - unique
+          - not_null
+      - name: content_id
+        description: "Natural key"
+        data_tests: 
+          - unique
+          - not_null
+      - name: content_type
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ["movie", "tv_show"]

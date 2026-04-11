@@ -1,0 +1,240 @@
+version: 2
+
+seeds:
+  # ─── CONTENT CATALOG (from TMDB API or synthetic fallback) ──────────────
+  - name: raw_content_catalog
+    description: >
+      Content catalog of movies and TV shows. When TMDB_API_KEY is set,
+      this contains real data from The Movie Database API.
+      Serves as dim_content source and drives recommendation models.
+    columns:
+      - name: content_id
+        description: "Unique content identifier (TMDB_M_xxx for movies, TMDB_T_xxx for TV)"
+        data_tests:
+          - unique
+          - not_null
+      - name: tmdb_id
+        description: "Original TMDB numeric ID"
+      - name: title
+        description: "Content title"
+        data_tests:
+          - not_null
+      - name: content_type
+        description: "movie or tv_show"
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ["movie", "tv_show"]
+      - name: genres
+        description: "Pipe-delimited genre list (e.g. Action|Thriller)"
+      - name: primary_genre
+        description: "First/main genre"
+      - name: release_date
+        description: "Release or first air date (YYYY-MM-DD)"
+      - name: vote_average
+        description: "Average rating on TMDB (0-10 scale)"
+      - name: vote_count
+        description: "Number of votes on TMDB"
+      - name: popularity
+        description: "TMDB popularity score"
+      - name: original_language
+        description: "ISO language code"
+      - name: overview
+        description: "Brief content synopsis (truncated to 200 chars)"
+      - name: runtime_minutes
+        description: "Runtime in minutes (per episode for TV shows)"
+
+  # ─── USERS ─────────────────────────────────────────────────────────────
+  - name: raw_users
+    description: >
+      Synthetic user profiles with subscription info and genre preferences.
+      15% churn rate. Each user has 2-4 preferred genres that drive their
+      watch behavior, enabling content recommendation ML models.
+    columns:
+      - name: customer_id
+        description: "Unique customer identifier (format: CUST_XXXXXX)"
+        data_tests:
+          - unique
+          - not_null
+      - name: email
+        description: "Customer email address (synthetic)"
+      - name: country
+        description: "ISO country code"
+      - name: age
+        description: "Customer age at signup"
+      - name: signup_date
+        description: "Date the customer signed up"
+        data_tests:
+          - not_null
+      - name: plan_type
+        description: "Subscription plan: basic ($9.99), standard ($15.49), or premium ($22.99)"
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ["basic", "standard", "premium"]
+      - name: monthly_revenue
+        description: "Monthly subscription fee in USD"
+      - name: is_churned
+        description: "Whether the customer has cancelled their subscription"
+      - name: churn_date
+        description: "Date of cancellation (null if still active)"
+      - name: acquisition_channel
+        description: "How the customer was acquired (organic, paid_search, social, referral, tv_ad)"
+      - name: device_type
+        description: "Primary device used for streaming"
+      - name: preferred_genres
+        description: "Pipe-delimited preferred genres (e.g. Action|Drama|Comedy)"
+      - name: activity_level
+        description: "User engagement tier: low (1-3/wk), medium (3-7/wk), high (7-14/wk)"
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ["low", "medium", "high"]
+
+  # ─── SUBSCRIPTION EVENTS ───────────────────────────────────────────────
+  - name: raw_subscription_events
+    description: "Subscription lifecycle events: subscribe, upgrade, downgrade, cancel"
+    columns:
+      - name: customer_id
+        description: "FK to raw_users"
+        data_tests:
+          - not_null
+      - name: event_type
+        description: "Type of subscription event"
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ["subscribe", "upgrade", "downgrade", "cancel"]
+      - name: event_date
+        description: "Date the event occurred"
+        data_tests:
+          - not_null
+      - name: plan_type
+        description: "Plan at time of event"
+      - name: monthly_revenue
+        description: "Revenue at time of event (0 for cancellations)"
+      - name: cancellation_reason
+        description: "Reason for cancellation (null for non-cancel events)"
+
+  # ─── WATCH EVENTS ─────────────────────────────────────────────────────
+  - name: raw_watch_events
+    description: >
+      Per-user viewing history mapped to real TMDB content.
+      Key behavioral signals: completion rates, session patterns,
+      binge watching, device switching, engagement decay for churners.
+      Primary input for churn prediction feature engineering.
+    columns:
+      - name: watch_event_id
+        description: "Unique watch event identifier"
+        data_tests:
+          - unique
+          - not_null
+      - name: customer_id
+        description: "FK to raw_users"
+        data_tests:
+          - not_null
+      - name: content_id
+        description: "FK to raw_content_catalog"
+        data_tests:
+          - not_null
+      - name: watch_date
+        description: "Date of the watch event"
+        data_tests:
+          - not_null
+      - name: watch_start_time
+        description: "Time the viewing started (HH:MM:SS)"
+      - name: watch_duration_minutes
+        description: "Actual minutes watched"
+      - name: completion_percentage
+        description: "How much of the content was watched (0.0 to 1.0)"
+      - name: device_type
+        description: "Device used for this specific watch event"
+      - name: session_id
+        description: "Groups consecutive watches in a viewing session (binge detection)"
+      - name: is_resumed
+        description: "Whether this was a resume from a previous incomplete watch"
+
+  # ─── USER RATINGS ──────────────────────────────────────────────────────
+  - name: raw_user_ratings
+    description: >
+      User ratings for watched content (1-5 scale). ~30% of watched
+      content gets rated. Ratings correlate with completion percentage.
+      Key input for collaborative filtering recommendation models.
+    columns:
+      - name: rating_id
+        description: "Unique rating identifier"
+        data_tests:
+          - unique
+          - not_null
+      - name: customer_id
+        description: "FK to raw_users"
+        data_tests:
+          - not_null
+      - name: content_id
+        description: "FK to raw_content_catalog"
+        data_tests:
+          - not_null
+      - name: rating
+        description: "User rating (1=poor to 5=excellent)"
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [1, 2, 3, 4, 5]
+      - name: rated_at
+        description: "Date the rating was submitted"
+
+  # ─── WATCHLIST ─────────────────────────────────────────────────────────
+  - name: raw_user_watchlist
+    description: >
+      Content saved to user watchlists (intent signal).
+      Watchlist-to-watch conversion rate is a churn predictor:
+      active users convert ~45%, churning users only ~20%.
+    columns:
+      - name: watchlist_id
+        description: "Unique watchlist entry identifier"
+        data_tests:
+          - unique
+          - not_null
+      - name: customer_id
+        description: "FK to raw_users"
+        data_tests:
+          - not_null
+      - name: content_id
+        description: "FK to raw_content_catalog"
+        data_tests:
+          - not_null
+      - name: added_at
+        description: "Date the content was added to watchlist"
+        data_tests:
+          - not_null
+      - name: is_watched
+        description: "Whether the user eventually watched this content"
+
+  # ─── SUPPORT TICKETS ───────────────────────────────────────────────────
+  - name: raw_support_tickets
+    description: "Customer support interactions"
+    columns:
+      - name: ticket_id
+        description: "Unique ticket identifier"
+        data_tests:
+          - unique
+          - not_null
+      - name: customer_id
+        description: "FK to raw_users"
+        data_tests:
+          - not_null
+      - name: category
+        description: "Support category: billing, technical, content, account"
+      - name: channel
+        description: "Support channel: chat, email, phone"
+      - name: created_at
+        description: "Timestamp when ticket was created"
+      - name: resolution_time_hours
+        description: "Hours to resolve the ticket"
+      - name: is_resolved
+        description: "Whether the ticket was resolved"
+      - name: sentiment_score
+        description: "Sentiment score from -1 (negative) to 1 (positive)"

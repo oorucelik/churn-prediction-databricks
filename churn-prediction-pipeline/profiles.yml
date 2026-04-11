@@ -1,0 +1,41 @@
+# ============================================================
+# PROFILES.YML — Multi-target: DuckDB (local) → Fabric (prod)
+# ============================================================
+# This file demonstrates platform portability:
+# - "dev" runs on DuckDB (free, local, instant)
+# - "fabric" runs on Microsoft Fabric Lakehouse
+# - "databricks" is a placeholder showing how easy the swap is
+# ============================================================
+
+churn_pipeline:
+  target: dev  # Default to local DuckDB for fast iteration
+
+  outputs:
+    # ── LOCAL DEV (DuckDB) ─────────────────────────────────
+    dev:
+      type: duckdb
+      path: "target/churn_pipeline.duckdb"
+      threads: 4
+
+    # ── MICROSOFT FABRIC ───────────────────────────────────
+    # Uncomment and configure when ready to deploy to Fabric
+    # fabric:
+    #   type: fabric
+    #   driver: "ODBC Driver 18 for SQL Server"
+    #   server: "<your-workspace>.datawarehouse.fabric.microsoft.com"
+    #   database: "<your-lakehouse-sql-endpoint>"
+    #   port: 1433
+    #   schema: dbo
+    #   threads: 4
+    #   authentication: CLI  # Uses `az login`
+    #   # Alternative: authentication: ServicePrincipal
+
+    # ── DATABRICKS (future swap) ───────────────────────────
+    # Shows platform portability — same dbt models, different target
+    # databricks:
+    #   type: databricks
+    #   host: "<your-workspace>.cloud.databricks.com"
+    #   http_path: "/sql/1.0/warehouses/<id>"
+    #   schema: default
+    #   threads: 4
+    #   token: "{{ env_var('DATABRICKS_TOKEN') }}"

@@ -1,0 +1,42 @@
+version: 2
+
+models:
+  # ─── Customers ──────────────────────────────────────────────
+  - name: stg_customers
+    description: "Cleaned and typed customer profiles with genre preferences"
+    columns:
+      - name: customer_key
+        description: "Surrogate key (hashed from customer_id)"
+        data_tests:
+          - unique
+          - not_null
+      - name: customer_id
+        description: "Natural key from source system"
+        data_tests:
+          - unique
+          - not_null
+
+  - name: stg_subscription_events
+    description: "Cleaned subscription lifecycle events"
+    columns:
+      - name: subscription_event_key
+        description: "Surrogate key (hashed from customer_id + event_type + event_date)"
+        data_tests:
+          - unique
+          - not_null
+      - name: customer_id
+        data_tests:
+          - not_null
+
+  - name: stg_support_tickets
+    description: "Cleaned customer support interactions"
+    columns:
+      - name: interaction_key
+        description: "Surrogate key (hashed from ticket_id)"
+        data_tests:
+          - unique
+          - not_null
+      - name: ticket_id
+        data_tests:
+          - unique
+          - not_null
