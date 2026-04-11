@@ -20,9 +20,9 @@ final as (
         release_date,
         -- Content age bucket (for recommendation freshness weighting)
         case
-            when release_date >= current_date - interval '1 year'  then 'new_release'
-            when release_date >= current_date - interval '3 years' then 'recent'
-            when release_date >= current_date - interval '10 years' then 'catalog'
+            when release_date >= {{ dbt.dateadd('year', -1, 'current_date') }} then 'new_release'
+            when release_date >= {{ dbt.dateadd('year', -3, 'current_date') }} then 'recent'
+            when release_date >= {{ dbt.dateadd('year', -10, 'current_date') }} then 'catalog'
             else 'classic'
         end as content_age_bucket,
         vote_average,
