@@ -14,11 +14,11 @@ with date_spine as (
 
 final as (
     select
-        cast(date_day as date)                          as date_day,
-        extract(year from date_day)                     as year,
-        extract(month from date_day)                    as month,
-        extract(day from date_day)                      as day_of_month,
-        extract(dow from date_day)                      as day_of_week_num,
+        date_day as date_day,
+        extract(year from date_day) as year,
+        extract(month from date_day) as month,
+        extract(day from date_day) as day_of_month,
+        extract(dow from date_day) as day_of_week_num,
         case extract(dow from date_day)
             when 0 then 'Sunday'
             when 1 then 'Monday'
@@ -27,11 +27,11 @@ final as (
             when 4 then 'Thursday'
             when 5 then 'Friday'
             when 6 then 'Saturday'
-        end                                             as day_of_week_name,
+        end as day_of_week_name,
         case
             when extract(dow from date_day) in (0, 6) then true
             else false
-        end                                             as is_weekend,
+        end as is_weekend,
         case extract(month from date_day)
             when 1 then 'January'
             when 2 then 'February'
@@ -45,9 +45,9 @@ final as (
             when 10 then 'October'
             when 11 then 'November'
             when 12 then 'December'
-        end                                             as month_name,
-        ceil(extract(month from date_day) / 3.0)        as quarter,
-        extract(year from date_day)                     as fiscal_year
+        end as month_name,
+        ceil(extract(month from date_day) / 3.0) as quarter,
+        extract(year from date_day) as fiscal_year
     from date_spine
 )
 
