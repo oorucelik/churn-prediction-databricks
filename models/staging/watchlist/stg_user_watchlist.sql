@@ -13,7 +13,7 @@ renamed as (
         customer_id,
         content_id,
         cast(added_at as date)        as added_at,
-        cast(is_watched as boolean)   as is_watched
+        cast(is_watched as bit)  as is_watched
     from source
 )
 

@@ -16,7 +16,7 @@ renamed as (
         cast(signup_date as date)              as signup_date,
         plan_type,
         cast(monthly_revenue as decimal(10,2)) as monthly_revenue,
-        cast(is_churned as boolean)            as is_churned,
+        cast(is_churned as bit)                as is_churned,
         cast(churn_date as date)               as churn_date,
         acquisition_channel,
         device_type,

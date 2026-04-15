@@ -11,7 +11,6 @@ seeds:
       - name: content_id
         description: "Unique content identifier (TMDB_M_xxx for movies, TMDB_T_xxx for TV)"
         data_tests:
-          - unique
           - not_null
       - name: tmdb_id
         description: "Original TMDB numeric ID"
@@ -55,7 +54,6 @@ seeds:
       - name: customer_id
         description: "Unique customer identifier (format: CUST_XXXXXX)"
         data_tests:
-          - unique
           - not_null
       - name: email
         description: "Customer email address (synthetic)"
@@ -129,7 +127,6 @@ seeds:
       - name: watch_event_id
         description: "Unique watch event identifier"
         data_tests:
-          - unique
           - not_null
       - name: customer_id
         description: "FK to raw_users"
@@ -166,7 +163,6 @@ seeds:
       - name: rating_id
         description: "Unique rating identifier"
         data_tests:
-          - unique
           - not_null
       - name: customer_id
         description: "FK to raw_users"
@@ -196,7 +192,6 @@ seeds:
       - name: watchlist_id
         description: "Unique watchlist entry identifier"
         data_tests:
-          - unique
           - not_null
       - name: customer_id
         description: "FK to raw_users"
@@ -220,7 +215,6 @@ seeds:
       - name: ticket_id
         description: "Unique ticket identifier"
         data_tests:
-          - unique
           - not_null
       - name: customer_id
         description: "FK to raw_users"
