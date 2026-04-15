@@ -10,7 +10,7 @@ churn_pipeline:
       threads: 4
       authentication: ServicePrincipal
       client_id: "9c7bcbee-7123-4c8d-902d-b24907395757"
-      client_secret: "{{ env_var('DBT_ENV_SECRET_fabrıc_sp') }}"
+      client_secret: "{{env_var('DBT_ENV_SECRET_FABRIC_SP')}}"
       tenant_id: "0f4441b8-ef61-4fb1-986b-1eecb511d90e"
 
     prod:
@@ -23,9 +23,8 @@ churn_pipeline:
       threads: 4
       authentication: ServicePrincipal
       client_id: "9c7bcbee-7123-4c8d-902d-b24907395757"
-      client_secret: "{{env_var('DBT_ENV_SECRET_fabrıc_sp')}}"
+      client_secret: "{{env_var('DBT_ENV_SECRET_FABRIC_SP')}}"
       tenant_id: "0f4441b8-ef61-4fb1-986b-1eecb511d90e"
-    #   # Alternative: authentication: CLI requires az login first
     # ── DATABRICKS (future swap) ───────────────────────────
     # Shows platform portability — same dbt models, different target
     # databricks:
