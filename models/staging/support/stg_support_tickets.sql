@@ -11,9 +11,9 @@ renamed as (
         customer_id,
         category,
         channel,
-        cast(created_at as timestamp)               as created_at,
+        cast(created_at as datetime2)              as created_at,
         cast(resolution_time_hours as decimal(10,1)) as resolution_time_hours,
-        cast(is_resolved as boolean)                 as is_resolved,
+        cast(is_resolved as bit)                   as is_resolved,
         cast(sentiment_score as decimal(5,2))        as sentiment_score
     from source
 )
