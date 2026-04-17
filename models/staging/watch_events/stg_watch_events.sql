@@ -17,7 +17,7 @@ renamed as (
         cast(completion_percentage as decimal(5,2))      as completion_percentage,
         device_type,
         session_id,
-        cast(is_resumed as boolean)                      as is_resumed
+        cast(is_resumed as bit)                      as is_resumed
     from source
 )
 

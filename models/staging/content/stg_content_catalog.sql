@@ -2,8 +2,12 @@
 -- Content catalog from TMDB API (movies & TV shows).
 -- Splits pipe-delimited genres into primary_genre for joins.
 
-with source as (
-    select * from {{ ref('raw_content_catalog') }}
+{{config(materialized='table')}}
+
+with content as (
+    select *,
+        row_number() over (partition by content_id order by content_id desc) as rn
+    from {{ref('raw_content_catalog')}} 
 ),
 
 renamed as (
@@ -22,7 +26,8 @@ renamed as (
         original_language,
         overview,
         cast(runtime_minutes as integer)     as runtime_minutes
-    from source
+    from content
+    where rn = 1
 )
 
 select * from renamed

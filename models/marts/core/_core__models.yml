@@ -1,15 +1,7 @@
 version: 2
 
 models:
-  - name: dim_date
-    description: "Date dimension covering 2023-2027."
-    columns:
-      - name: date_day
-        description: "Calendar date"
-        data_tests:
-          - unique
-          - not_null
-
+  
   - name: dim_customer
     description: "Customer dimension with age banding, genre preferences, and activity level"
     columns:
