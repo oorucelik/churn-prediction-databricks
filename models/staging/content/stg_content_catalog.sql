@@ -1,18 +1,13 @@
 -- staging/content/stg_content_catalog.sql
 -- Content catalog from TMDB API (movies & TV shows).
 -- Splits pipe-delimited genres into primary_genre for joins.
-{{config(
-    materialized='table',
-    schema='dev_ocelik',
-    alias='stg_content_catalog'
-)}}
+
+{{config(materialized='table')}}
+
 with content as (
-    {{ dbt_utils.deduplicate(
-    relation=ref('raw_content_catalog'),
-    partition_by='content_id',
-    order_by='content_id desc',
-   )
-}}
+    select *,
+        row_number() over (partition by content_id order by content_id desc) as rn
+    from {{ref('raw_content_catalog')}} 
 ),
 
 renamed as (
@@ -32,6 +27,7 @@ renamed as (
         overview,
         cast(runtime_minutes as integer)     as runtime_minutes
     from content
+    where rn = 1
 )
 
 select * from renamed

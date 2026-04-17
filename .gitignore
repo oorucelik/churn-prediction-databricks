@@ -9,3 +9,4 @@ __pycache__/
 .env
 dbt_internal_packages/
 scripts/.cache/
+profiles.yml

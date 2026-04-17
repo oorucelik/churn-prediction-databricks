@@ -40,3 +40,18 @@ models:
         data_tests:
           - unique
           - not_null
+
+  # ─── Content ──────────────────────────────────────────────
+  - name: stg_content_catalog
+    description: "Cleaned and typed content catalog"
+    columns:
+      - name: content_key
+        description: "Surrogate key (hashed from content_id)"
+        data_tests:
+          - unique
+          - not_null
+      - name: content_id
+        description: "Natural key from source system"
+        data_tests:
+          - unique
+          - not_null
