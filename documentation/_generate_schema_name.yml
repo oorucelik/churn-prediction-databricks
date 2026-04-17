@@ -1,0 +1,19 @@
+documentation:
+  - name: generate_schema_name
+    description: "Generates the schema name based on the target and custom schema name."
+    arguments:
+      - name: custom_schema_name
+        description: "The custom schema name to use."
+      - name: node
+        description: "The node to use."
+
+    examples:
+      - name: generate_schema_name
+        description: "Generates the schema name based on the target and custom schema name. If the target is 'dev' and the custom schema name is 'raw', it will return 'dbo_raw'. Otherwise, it will return the default schema name."
+        arguments:
+          - name: custom_schema_name
+            value: "raw"
+          - name: node
+            value: "stg_content_catalog"
+        output:
+          value: "dbo_raw"
