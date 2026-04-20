@@ -1,7 +1,7 @@
 name: 'churn_pipeline'
 version: '1.0.0'
 dbt-cloud:
-  project-id: 70471823573595
+  project-id: 70471823576879
 
 profile: 'churn_pipeline'
 
