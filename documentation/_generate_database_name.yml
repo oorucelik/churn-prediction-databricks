@@ -1,0 +1,19 @@
+documentation:
+  - name: generate_database_name
+    description: "Generates the database name based on the target and custom database name."
+    arguments:
+      - name: generate_database_name
+        description: "The custom database name to use."
+      - name: node
+        description: "The node to use."
+
+    examples:
+      - name: generate_database_name
+        description: "Generates the catalog name based on the target name and node schema name. It has one specific case, if the target is 'dev' and the node schema name is 'raw', it will return 'prod'. Otherwise, it will return the default schema name If custom catalog is not available."
+        arguments:
+          - name: custom_database_name
+            value: "dev"
+          - name: node.config.schema
+            value: "raw"
+        output:
+          value: "prod"
