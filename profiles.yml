@@ -3,6 +3,7 @@ churn_pipeline:
   outputs:
     dev:
       type: databricks
+      catalog: dev
       schema: dev_ocelik
       host: dbc-d93ecbbd-cf6c.cloud.databricks.com
       http_path: /sql/1.0/warehouses/35f22ecad1c625f5
@@ -10,6 +11,7 @@ churn_pipeline:
 
     prod:
       type: databricks
+      catalog: prod
       schema: dbo
       host: dbc-d93ecbbd-cf6c.cloud.databricks.com
       http_path: /sql/1.0/warehouses/35f22ecad1c625f5

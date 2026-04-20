@@ -19,14 +19,21 @@ clean-targets:
 seeds:
   churn_pipeline:
     +schema: raw
+    +catalog: prod
 
 models:
   churn_pipeline:
     staging:
       +materialized: view
       +schema: staging
+      +catalog: prod
+
     intermediate:
       +materialized: ephemeral
+      +schema: intermediate
+      +catalog: prod
+
     marts:
       +materialized: table
       +schema: marts
+      +catalog: prod
