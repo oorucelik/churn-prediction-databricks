@@ -1,0 +1,42 @@
+version: 2
+
+models:
+  - name: fct_subscription_event
+    description: "Subscription lifecycle fact table — subscribe, upgrade, downgrade, cancel events with revenue impact."
+    columns:
+      - name: subscription_event_key
+        description: "Surrogate key"
+        data_tests:
+          - unique
+          - not_null
+      - name: customer_key
+        description: "FK to dim_customer"
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_customer')
+                field: customer_key
+      - name: date_day
+        description: "FK to dim_date"
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_day
+      - name: event_type
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ["subscribe", "upgrade", "downgrade", "cancel"]
+      - name: plan_type
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ["basic", "standard", "premium"]
+      - name: monthly_revenue
+        data_tests:
+          - not_null

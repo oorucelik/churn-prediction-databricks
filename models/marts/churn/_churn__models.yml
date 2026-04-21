@@ -1,0 +1,102 @@
+version: 2
+
+models:
+  - name: fct_watch_event
+    description: "Watch event fact — one row per viewing session. Core behavioral signal for churn prediction."
+    columns:
+      - name: watch_event_key
+        description: "Surrogate key"
+        data_tests:
+          - unique
+          - not_null
+      - name: customer_key
+        description: "FK to dim_customer"
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_customer')
+                field: customer_key
+      - name: content_key
+        description: "FK to dim_content"
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_content')
+                field: content_key
+      - name: date_day
+        description: "FK to dim_date"
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_day
+      - name: engagement_level
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ["completed", "engaged", "sampled", "abandoned"]
+
+  - name: fct_support_interaction
+    description: "Support ticket fact — resolution time and sentiment are churn predictors."
+    columns:
+      - name: interaction_key
+        description: "Surrogate key"
+        data_tests:
+          - unique
+          - not_null
+      - name: customer_key
+        description: "FK to dim_customer"
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_customer')
+                field: customer_key
+      - name: date_day
+        description: "FK to dim_date (cast from created_at)"
+        data_tests:
+          - not_null
+      - name: sentiment_tier
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ["positive", "neutral", "negative"]
+      - name: resolution_tier
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ["quick", "standard", "slow", "critical"]
+
+  - name: fct_daily_user_activity
+    description: "Periodic snapshot fact — one row per customer per active day. Aggregates watch, rating, and watchlist activity."
+    columns:
+      - name: activity_key
+        description: "Surrogate key (customer_id + date)"
+        data_tests:
+          - unique
+          - not_null
+      - name: customer_key
+        description: "FK to dim_customer"
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_customer')
+                field: customer_key
+      - name: date_day
+        description: "FK to dim_date"
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_day
+      - name: sessions_count
+        data_tests:
+          - not_null
+      - name: daily_engagement_score
+        data_tests:
+          - not_null
