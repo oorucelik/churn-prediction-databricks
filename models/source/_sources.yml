@@ -6,6 +6,13 @@ sources:
     schema: raw
     tables:
       - name: raw_content_catalog
+<<<<<<< HEAD
         freshness:
           warn_after: {count: 1, period: day}
           error_after: {count: 3, period: day}
+=======
+        config:
+          freshness:
+            warn_after: {count: 1, period: day}
+            error_after: {count: 3, period: day}
+>>>>>>> 51aaed8 (feature(source): Added stg_content_catalog.sql and _sources.yml files)
