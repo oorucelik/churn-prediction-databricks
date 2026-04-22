@@ -7,7 +7,7 @@
 with content as (
     select *,
         row_number() over (partition by content_id order by content_id desc) as rn
-    from {{ref('raw_content_catalog')}} 
+    from {{source('tmdb_api__content_catalog', 'raw_content_catalog')}}
 ),
 
 renamed as (
