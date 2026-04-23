@@ -159,14 +159,9 @@ subscription_features as (
             - sum(case when event_type = 'downgrade' then 1 else 0 end) as net_plan_changes,
 
         -- Had a downgrade (binary — strong churn signal)
-        max(case when event_type = 'downgrade' then 1 else 0 end) as has_downgraded,
+        max(case when event_type = 'downgrade' then 1 else 0 end) as has_downgraded
 
-        -- Revenue at last event
-        last_value(monthly_revenue) ignore nulls over (
-            partition by customer_key
-            order by date_day
-            rows between unbounded preceding and unbounded following
-        ) as current_revenue
+        -- Note: current_revenue omitted — monthly_revenue already in dim_customer
 
     from {{ ref('fct_subscription_event') }}
     group by customer_key
