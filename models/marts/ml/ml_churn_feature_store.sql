@@ -79,22 +79,22 @@ watch_features as (
 
         -- Duration metrics
         sum(watch_duration_minutes) as total_watch_minutes,
-        avg(watch_duration_minutes) as avg_watch_duration_min,
+        round(avg(watch_duration_minutes), 2) as avg_watch_duration_min,
         max(watch_duration_minutes) as max_watch_duration_min,
 
         -- Completion metrics
-        avg(completion_percentage) as avg_completion_pct,
+        round(avg(completion_percentage), 2) as avg_completion_pct,
         sum(case when engagement_level = 'completed' then 1 else 0 end) as completed_count,
         sum(case when engagement_level = 'abandoned' then 1 else 0 end) as abandoned_count,
-        sum(case when engagement_level = 'completed' then 1 else 0 end) * 1.0
-            / nullif(count(*), 0) as completion_rate,
-        sum(case when engagement_level = 'abandoned' then 1 else 0 end) * 1.0
-            / nullif(count(*), 0) as abandonment_rate,
+        round(sum(case when engagement_level = 'completed' then 1 else 0 end) * 1.0
+            / nullif(count(*), 0), 2) as completion_rate,
+        round(sum(case when engagement_level = 'abandoned' then 1 else 0 end) * 1.0
+            / nullif(count(*), 0), 2) as abandonment_rate,
 
         -- Resume behavior (re-engagement signal)
         sum(case when is_resumed then 1 else 0 end) as resumed_count,
-        sum(case when is_resumed then 1 else 0 end) * 1.0
-            / nullif(count(*), 0) as resume_rate,
+        round(sum(case when is_resumed then 1 else 0 end) * 1.0
+            / nullif(count(*), 0), 2) as resume_rate,
 
         -- Session type distribution
         sum(case when session_duration_bucket = 'binge' then 1 else 0 end) as binge_session_count,
@@ -131,12 +131,12 @@ watch_recent as (
             as watch_minutes_last_30d,
 
         -- Trend: 7d vs 30d ratio (declining = churn risk)
-        case
+        round(case
             when sum(case when date_day >= dateadd(day, -30, current_date()) then 1 else 0 end) > 0
             then sum(case when date_day >= dateadd(day, -7, current_date()) then 1 else 0 end) * 1.0
                  / (sum(case when date_day >= dateadd(day, -30, current_date()) then 1 else 0 end) / 4.28)
             else null
-        end as watch_trend_7d_vs_30d
+        end, 2) as watch_trend_7d_vs_30d
 
     from {{ ref('fct_watch_event') }}
     group by customer_key
@@ -159,14 +159,9 @@ subscription_features as (
             - sum(case when event_type = 'downgrade' then 1 else 0 end) as net_plan_changes,
 
         -- Had a downgrade (binary — strong churn signal)
-        max(case when event_type = 'downgrade' then 1 else 0 end) as has_downgraded,
+        max(case when event_type = 'downgrade' then 1 else 0 end) as has_downgraded
 
-        -- Revenue at last event
-        last_value(monthly_revenue) ignore nulls over (
-            partition by customer_key
-            order by date_day
-            rows between unbounded preceding and unbounded following
-        ) as current_revenue
+        -- Note: current_revenue omitted — monthly_revenue already in dim_customer
 
     from {{ ref('fct_subscription_event') }}
     group by customer_key
@@ -180,15 +175,15 @@ support_features as (
         customer_key,
 
         count(*) as total_support_tickets,
-        avg(resolution_time_hours) as avg_resolution_hours,
+        round(avg(resolution_time_hours), 2) as avg_resolution_hours,
         max(resolution_time_hours) as max_resolution_hours,
-        avg(sentiment_score) as avg_sentiment_score,
+        round(avg(sentiment_score), 2) as avg_sentiment_score,
         min(sentiment_score) as min_sentiment_score,
 
         -- Negative interactions (churn amplifier)
         sum(case when sentiment_tier = 'negative' then 1 else 0 end) as negative_ticket_count,
-        sum(case when sentiment_tier = 'negative' then 1 else 0 end) * 1.0
-            / nullif(count(*), 0) as negative_ticket_rate,
+        round(sum(case when sentiment_tier = 'negative' then 1 else 0 end) * 1.0
+            / nullif(count(*), 0), 2) as negative_ticket_rate,
 
         -- Unresolved tickets
         sum(case when is_resolved = false then 1 else 0 end) as unresolved_ticket_count,
@@ -216,7 +211,7 @@ rating_features as (
         c.customer_key,
 
         count(*) as total_ratings,
-        avg(r.rating) as avg_rating_given,
+        round(avg(r.rating), 2) as avg_rating_given,
         min(r.rating) as min_rating_given,
         sum(case when r.rating <= 2 then 1 else 0 end) as low_ratings_count,
         sum(case when r.rating >= 4 then 1 else 0 end) as high_ratings_count
@@ -236,8 +231,8 @@ watchlist_features as (
 
         count(*) as total_watchlist_items,
         sum(case when wl.is_watched then 1 else 0 end) as watchlist_watched_count,
-        sum(case when wl.is_watched then 1 else 0 end) * 1.0
-            / nullif(count(*), 0) as watchlist_conversion_rate
+        round(sum(case when wl.is_watched then 1 else 0 end) * 1.0
+            / nullif(count(*), 0), 2) as watchlist_conversion_rate
 
     from {{ ref('stg_user_watchlist') }} as wl
     inner join {{ ref('dim_customer') }} as c
