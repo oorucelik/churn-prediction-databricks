@@ -1,6 +1,9 @@
+import os
 import requests
 import time
 import pandas as pd
+from databricks import sql as databricks_sql
+from datetime import datetime, timezone
 
 TMDB_GENRES = {
     28: "Action", 12: "Adventure", 16: "Animation", 35: "Comedy",
@@ -13,11 +16,11 @@ TMDB_GENRES = {
     10767: "Talk", 10768: "War & Politics",
 }
 
+
 def fetch_tmdb_content(api_key: str, movie_pages: int = 25, tv_pages: int = 10):
     """
     Fetch popular movies and TV shows from TMDB API.
     Returns a DataFrame with unified content catalog.
-    Caches results to avoid hitting the API repeatedly.
     """
     base_url = "https://api.themoviedb.org/3"
     headers = {"Authorization": f"Bearer {api_key}"}
@@ -48,19 +51,17 @@ def fetch_tmdb_content(api_key: str, movie_pages: int = 25, tv_pages: int = 10):
                 "original_language": movie.get("original_language", "en"),
                 "overview": (movie.get("overview", "") or "")[:200],
             })
-            # get runtime from movie details
-            time.sleep(0.3)  # respect rate limits (40 req / 10 sec)    
-            movie_ids_resp = requests.get(
+            # Fetch runtime from detail endpoint
+            time.sleep(0.3)
+            detail_resp = requests.get(
                 f"{base_url}/movie/{movie['id']}",
                 headers=headers,
                 params={"language": "en-US"},
             )
-            movie_ids_resp.raise_for_status()
-            all_content[-1]["runtime_minutes"] = movie_ids_resp.json()["runtime"] if movie_ids_resp.json()["runtime"] else "N/A"
-        time.sleep(0.3)  # respect rate limits (40 req / 10 sec)
+            detail_resp.raise_for_status()
+            all_content[-1]["runtime_minutes"] = detail_resp.json().get("runtime") or None
+        time.sleep(0.3)
 
-        
-        
     # Fetch popular TV shows
     print(f"  Fetching {tv_pages} pages of popular TV shows from TMDB...")
     for page in range(1, tv_pages + 1):
@@ -86,15 +87,107 @@ def fetch_tmdb_content(api_key: str, movie_pages: int = 25, tv_pages: int = 10):
                 "original_language": show.get("original_language", "en"),
                 "overview": (show.get("overview", "") or "")[:200],
             })
-            # get runtime from tv details
-            time.sleep(0.3)  # respect rate limits (40 req / 10 sec)    
-            tv_ids_resp = requests.get(
+            # Fetch episode runtime from detail endpoint
+            time.sleep(0.3)
+            detail_resp = requests.get(
                 f"{base_url}/tv/{show['id']}",
                 headers=headers,
                 params={"language": "en-US"},
             )
-            tv_ids_resp.raise_for_status()
-            all_content[-1]["runtime_minutes"] = tv_ids_resp.json()["episode_run_time"][0] if tv_ids_resp.json()["episode_run_time"] else "N/A"
-        time.sleep(0.3)  # respect rate limits (40 req / 10 sec)
+            detail_resp.raise_for_status()
+            runtimes = detail_resp.json().get("episode_run_time", [])
+            all_content[-1]["runtime_minutes"] = runtimes[0] if runtimes else None
+        time.sleep(0.3)
 
     return pd.DataFrame(all_content)
+
+
+def write_to_databricks(
+    df: pd.DataFrame,
+    host: str,
+    http_path: str,
+    token: str,
+    catalog: str = "prod",
+    schema: str = "dbo_raw",
+    table: str = "raw_content_catalog",
+) -> None:
+    """
+    Full-refresh write of the content catalog DataFrame to Databricks Unity Catalog.
+    Adds _loaded_at timestamp for dbt source freshness checks.
+    """
+    loaded_at = datetime.now(timezone.utc)
+    df = df.copy()
+    df["_loaded_at"] = loaded_at
+
+    # Coerce types
+    df["tmdb_id"] = df["tmdb_id"].astype("Int64")
+    df["vote_count"] = df["vote_count"].astype("Int64")
+    df["runtime_minutes"] = pd.to_numeric(df["runtime_minutes"], errors="coerce").astype("Int64")
+    df = df.where(pd.notna(df), None)  # convert NaN → None for SQL NULL
+
+    full_table = f"`{catalog}`.`{schema}`.`{table}`"
+
+    print(f"  Connecting to {host}...")
+    with databricks_sql.connect(
+        server_hostname=host,
+        http_path=http_path,
+        access_token=token,
+    ) as conn:
+        with conn.cursor() as cursor:
+            # Ensure schema exists
+            cursor.execute(f"CREATE SCHEMA IF NOT EXISTS `{catalog}`.`{schema}`")
+
+            # Full refresh: drop and recreate
+            cursor.execute(f"DROP TABLE IF EXISTS {full_table}")
+            cursor.execute(f"""
+                CREATE TABLE {full_table} (
+                    content_id        STRING,
+                    tmdb_id           LONG,
+                    title             STRING,
+                    content_type      STRING,
+                    genres            STRING,
+                    primary_genre     STRING,
+                    release_date      STRING,
+                    vote_average      DOUBLE,
+                    vote_count        LONG,
+                    popularity        DOUBLE,
+                    original_language STRING,
+                    overview          STRING,
+                    runtime_minutes   LONG,
+                    _loaded_at        TIMESTAMP
+                ) USING DELTA
+            """)
+            print(f"  Created {full_table}")
+
+            # Batch insert (100 rows per statement)
+            cols = list(df.columns)
+            placeholders = ", ".join(["%s"] * len(cols))
+            insert_sql = f"INSERT INTO {full_table} VALUES ({placeholders})"
+
+            rows = [tuple(row) for row in df.itertuples(index=False, name=None)]
+            chunk_size = 100
+            for i in range(0, len(rows), chunk_size):
+                chunk = rows[i : i + chunk_size]
+                cursor.executemany(insert_sql, chunk)
+                print(f"  Inserted rows {i + 1}–{min(i + chunk_size, len(rows))} / {len(rows)}")
+
+    print(f"  Done — {len(df)} rows written to {full_table} at {loaded_at.isoformat()}")
+
+
+if __name__ == "__main__":
+    # ── Read env vars ─────────────────────────────────────────────────────────
+    api_key      = os.environ["TMDB_ACCESS_TOKEN"]
+    db_host      = os.environ["DATABRICKS_HOST"]
+    db_http_path = os.environ["DATABRICKS_HTTP_PATH"]
+    db_token     = os.environ["DATABRICKS_TOKEN"]
+    movie_pages  = int(os.environ.get("TMDB_MOVIE_PAGES", "25"))
+    tv_pages     = int(os.environ.get("TMDB_TV_PAGES", "10"))
+
+    # ── Fetch ─────────────────────────────────────────────────────────────────
+    print(f"[1/2] Fetching TMDB content ({movie_pages} movie pages, {tv_pages} TV pages)...")
+    df = fetch_tmdb_content(api_key, movie_pages=movie_pages, tv_pages=tv_pages)
+    print(f"  Fetched {len(df)} items ({df['content_type'].value_counts().to_dict()})")
+
+    # ── Write ─────────────────────────────────────────────────────────────────
+    print("[2/2] Writing to Databricks...")
+    write_to_databricks(df, host=db_host, http_path=db_http_path, token=db_token)
