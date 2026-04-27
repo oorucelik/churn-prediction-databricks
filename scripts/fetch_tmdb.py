@@ -159,17 +159,32 @@ def write_to_databricks(
             """)
             print(f"  Created {full_table}")
 
-            # Batch insert (100 rows per statement)
-            cols = list(df.columns)
-            placeholders = ", ".join(["%s"] * len(cols))
-            insert_sql = f"INSERT INTO {full_table} VALUES ({placeholders})"
+            # Build inline INSERT statements (avoids connector parameterization issues)
+            def sql_val(val):
+                """Convert a Python value to a SQL literal."""
+                if val is None:
+                    return "NULL"
+                if hasattr(val, 'item'):  # numpy scalar → Python
+                    val = val.item()
+                if pd.isna(val):
+                    return "NULL"
+                if isinstance(val, (int, float)):
+                    return str(val)
+                if isinstance(val, datetime):
+                    return f"'{val.isoformat()}'"
+                # String: escape single quotes
+                return "'" + str(val).replace("'", "''") + "'"
 
-            rows = [tuple(row) for row in df.itertuples(index=False, name=None)]
             chunk_size = 100
-            for i in range(0, len(rows), chunk_size):
-                chunk = rows[i : i + chunk_size]
-                cursor.executemany(insert_sql, chunk)
-                print(f"  Inserted rows {i + 1}–{min(i + chunk_size, len(rows))} / {len(rows)}")
+            for i in range(0, len(df), chunk_size):
+                chunk = df.iloc[i : i + chunk_size]
+                values_list = []
+                for _, row in chunk.iterrows():
+                    vals = ", ".join(sql_val(v) for v in row)
+                    values_list.append(f"({vals})")
+                insert_sql = f"INSERT INTO {full_table} VALUES {', '.join(values_list)}"
+                cursor.execute(insert_sql)
+                print(f"  Inserted rows {i + 1}–{min(i + chunk_size, len(df))} / {len(df)}")
 
     print(f"  Done — {len(df)} rows written to {full_table} at {loaded_at.isoformat()}")
 
