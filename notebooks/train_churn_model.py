@@ -43,8 +43,6 @@ from sklearn.metrics import (
 )
 from sklearn.preprocessing import LabelEncoder
 import matplotlib.pyplot as plt
-import warnings
-warnings.filterwarnings("ignore")
 
 # Load from Unity Catalog via Spark → pandas
 sdf = spark.table(FULL_TABLE)
