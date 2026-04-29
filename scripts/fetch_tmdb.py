@@ -305,6 +305,9 @@ def generate_watch_events(users_df: pd.DataFrame, content_df: pd.DataFrame):
 
             content = content_df.iloc[idx]
             runtime = content["runtime_minutes"]
+            # Guard: NaN when TMDB has no runtime data (common for TV shows)
+            if pd.isna(runtime) or runtime <= 0:
+                runtime = 45 if content["content_type"] == "tv_show" else 90
 
             # Completion: binge watchers finish more, churners finish less
             if user["is_churned"] and day_offset > active_days * 0.7:
@@ -573,8 +576,8 @@ if __name__ == "__main__":
     db_host      = os.environ["DATABRICKS_HOST"]
     db_http_path = os.environ["DATABRICKS_HTTP_PATH"]
     db_token     = os.environ["DATABRICKS_TOKEN"]
-    movie_pages  = int(os.environ.get("TMDB_MOVIE_PAGES", "25"))
-    tv_pages     = int(os.environ.get("TMDB_TV_PAGES", "10"))
+    movie_pages  = int(os.environ.get("TMDB_MOVIE_PAGES", "1"))
+    tv_pages     = int(os.environ.get("TMDB_TV_PAGES", "1"))
     n_users      = int(os.environ.get("N_USERS", "1000"))
     n_tickets    = int(os.environ.get("N_TICKETS", "5000"))
     
