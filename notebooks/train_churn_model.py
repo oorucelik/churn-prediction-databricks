@@ -1,8 +1,15 @@
 # Databricks notebook source
+# /// script
+# [tool.databricks.environment]
+# environment_version = "5"
+# dependencies = [
+#   "-r /Workspace/Users/o.oruccelik@gmail.com/tmdb-churn-prediction/notebooks/requirements.txt",
+# ]
+# ///
 # MAGIC %md
 # MAGIC # Churn Prediction — XGBoost Training Pipeline
 # MAGIC
-# MAGIC **Source table:** `prod.marts.ml_churn_feature_store`
+# MAGIC **Source table:** `prod.dbo_marts.ml_churn_feature_store`
 # MAGIC
 # MAGIC **Pipeline:**
 # MAGIC 1. Load feature store from Unity Catalog
@@ -15,21 +22,23 @@
 # MAGIC 8. Register model in Unity Catalog
 
 # COMMAND ----------
-# MAGIC %md ## 0. Config
+
+## 0. Config
 
 CATALOG   = "prod"
 SCHEMA    = "dbo_marts"
 TABLE     = "ml_churn_feature_store"
 FULL_TABLE = f"{CATALOG}.{SCHEMA}.{TABLE}"
 
-EXPERIMENT_NAME = "/Shared/churn-prediction/xgboost-churn"
+EXPERIMENT_NAME = "/Shared/churn-prediction"
 MODEL_NAME      = f"{CATALOG}.dbo_marts.churn_prediction"   # Unity Catalog model path
 
 # Random state — pin for reproducibility
 RANDOM_STATE = 42
 
 # COMMAND ----------
-# MAGIC %md ## 1. Load Feature Store
+
+## 1. Load Feature Store
 
 import mlflow 
 import mlflow.xgboost
@@ -53,7 +62,8 @@ print(f"Churn rate: {df['target_is_churned'].mean():.1%}")
 df.head(3)
 
 # COMMAND ----------
-# MAGIC %md ## 2. Sanity Checks
+
+## 2. Sanity Checks
 
 # Class balance
 print("=== Class distribution ===")
@@ -70,7 +80,8 @@ else:
     print("\n✅ No columns with >20% nulls")
 
 # COMMAND ----------
-# MAGIC %md ## 3. Feature Selection & Preprocessing
+
+## 3. Feature Selection & Preprocessing
 
 # ── Keys and leaky columns to drop ───────────────────────────────────────────
 # target_churn_date would leak: it's only set for churned customers
@@ -117,18 +128,24 @@ FEATURES = [f for f in FEATURES if f in df.columns]
 X = df[FEATURES].copy()
 y = df[TARGET].astype(int)
 
+# ── Coerce Spark Decimal → float (toPandas() converts DecimalType to Python
+#    Decimal objects, which pandas stores as 'object' dtype) ───────────────────
+obj_cols = X.select_dtypes(include=["object"]).columns.tolist()
+if obj_cols:
+    X[obj_cols] = X[obj_cols].apply(pd.to_numeric, errors="coerce")
+
 # ── Impute remaining nulls with median (XGBoost handles NaN natively too,
-#    but explicit imputation makes the pipeline more portable) ─────────────────
+#    but explicit imputation makes the pipeline more portable) 
 null_cols = X.columns[X.isnull().any()].tolist()
 if null_cols:
-    print(f"Imputing {len(null_cols)} columns with median: {null_cols}")
     X[null_cols] = X[null_cols].fillna(X[null_cols].median())
 
 print(f"\nFeature matrix: {X.shape[0]:,} rows × {X.shape[1]} features")
 print(f"Target: {y.sum():,} churned / {(y==0).sum():,} active")
 
 # COMMAND ----------
-# MAGIC %md ## 4. Train / Test Split
+
+## 4. Train / Test Split
 
 X_train, X_test, y_train, y_test = train_test_split(
     X, y,
@@ -141,7 +158,8 @@ print(f"Train: {len(X_train):,} rows  |  Test: {len(X_test):,} rows")
 print(f"Train churn rate: {y_train.mean():.1%}  |  Test churn rate: {y_test.mean():.1%}")
 
 # COMMAND ----------
-# MAGIC %md ## 5. Train XGBoost with Cross-Validation
+
+## 5. Train XGBoost with Cross-Validation
 
 # Churn datasets are typically imbalanced — weight the positive class
 scale_pos_weight = (y_train == 0).sum() / (y_train == 1).sum()
@@ -168,7 +186,7 @@ model = xgb.XGBClassifier(**PARAMS)
 
 # 5-fold stratified CV on training set
 cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=RANDOM_STATE)
-cv_scores = cross_val_score(model, X_train, y_train, cv=cv, scoring="roc_auc", verbose=0)
+cv_scores = cross_val_score(model, X_train, y_train, cv=cv, scoring="roc_auc", error_score='raise', verbose=0)
 
 print(f"\nCV AUC: {cv_scores.mean():.4f} ± {cv_scores.std():.4f}")
 print(f"Fold scores: {[f'{s:.4f}' for s in cv_scores]}")
@@ -181,7 +199,8 @@ model.fit(
 )
 
 # COMMAND ----------
-# MAGIC %md ## 6. Evaluation
+
+## 6. Evaluation
 
 y_pred_proba = model.predict_proba(X_test)[:, 1]
 y_pred       = (y_pred_proba >= 0.5).astype(int)
@@ -200,7 +219,8 @@ cm = confusion_matrix(y_test, y_pred)
 print(f"Confusion Matrix:\n{cm}")
 
 # COMMAND ----------
-# MAGIC %md ### Feature Importance
+
+### Feature Importance
 
 importance_df = pd.DataFrame({
     "feature":    FEATURES,
@@ -220,8 +240,8 @@ plt.tight_layout()
 plt.show()
 
 # COMMAND ----------
-# MAGIC %md ## 7. Log to MLflow
 
+## 7. Log to MLflow
 mlflow.set_experiment(EXPERIMENT_NAME)
 
 with mlflow.start_run(run_name="xgboost-churn-v1") as run:
@@ -251,16 +271,16 @@ with mlflow.start_run(run_name="xgboost-churn-v1") as run:
         input_example=X_test.head(5),
         registered_model_name=MODEL_NAME,
     )
-
     run_id = run.info.run_id
     print(f"✅ MLflow run logged: {run_id}")
     print(f"   Experiment: {EXPERIMENT_NAME}")
     print(f"   Model registered as: {MODEL_NAME}")
 
 # COMMAND ----------
-# MAGIC %md ## 8. Inference Preview
-# MAGIC
-# MAGIC Score the full dataset — useful for inspecting high-risk customers.
+
+## 8. Inference Preview
+
+#Score the full dataset — useful for inspecting high-risk customers.
 
 df["churn_probability"] = model.predict_proba(X)[:, 1]
 df["churn_predicted"]   = (df["churn_probability"] >= 0.5).astype(int)
@@ -284,19 +304,3 @@ display(
     .sort_values("churn_probability", ascending=False)
     .head(10)
 )
-
-# COMMAND ----------
-# MAGIC %md
-# MAGIC ## Summary
-# MAGIC
-# MAGIC | Metric | Value |
-# MAGIC |--------|-------|
-# MAGIC | CV AUC (5-fold) | See above |
-# MAGIC | Test AUC | See above |
-# MAGIC | Features used | 44 |
-# MAGIC | Model registered | `prod.marts.churn_xgboost` |
-# MAGIC
-# MAGIC ### Next Steps
-# MAGIC - **Threshold tuning:** Adjust 0.5 threshold based on business cost of FP vs FN
-# MAGIC - **SHAP values:** Add `shap` for local explanations per customer
-# MAGIC - **Airflow trigger:** `DatabricksRunNowOperator` will call this notebook as a Job
