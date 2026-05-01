@@ -1,0 +1,109 @@
+# ─── Airflow + Postgres for local orchestration ───────────────────────────────
+# Usage:
+#   docker compose up -d          # start
+#   docker compose down           # stop (keeps volumes)
+#   docker compose down -v        # stop + wipe metadata DB
+#
+# UI: http://localhost:8080  (user: admin / password: admin)
+
+x-airflow-common: &airflow-common
+  build:
+    context: .
+    dockerfile: Dockerfile.airflow
+  environment: &airflow-env
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+    AIRFLOW__CORE__FERNET_KEY: ""
+    AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
+    AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+    AIRFLOW__API__AUTH_BACKENDS: "airflow.api.auth.backend.basic_auth"
+    AIRFLOW__SCHEDULER__ENABLE_HEALTH_CHECK: "true"
+
+    # ── Project secrets (read from .env.docker at compose level) ──────────────
+    TMDB_ACCESS_TOKEN: ${TMDB_ACCESS_TOKEN}
+    DATABRICKS_HOST: ${DATABRICKS_HOST}
+    DATABRICKS_HTTP_PATH: ${DATABRICKS_HTTP_PATH}
+    DATABRICKS_TOKEN: ${DATABRICKS_TOKEN}
+
+    # ── dbt profile env vars ───────────────────────────────────────────────────
+    DBT_DATABRICKS_HOST: ${DATABRICKS_HOST}
+    DBT_DATABRICKS_HTTP_PATH: ${DATABRICKS_HTTP_PATH}
+    DBT_DATABRICKS_TOKEN: ${DATABRICKS_TOKEN}
+
+  volumes:
+    - ./dags:/opt/airflow/dags                     # DAG files
+    - ./logs/airflow:/opt/airflow/logs             # Airflow task logs
+    - ./models:/opt/airflow/dbt/models             # dbt models
+    - ./seeds:/opt/airflow/dbt/seeds               # dbt seeds
+    - ./macros:/opt/airflow/dbt/macros             # dbt macros
+    - ./dbt_project.yml:/opt/airflow/dbt/dbt_project.yml
+    - ./profiles.yml:/opt/airflow/dbt/profiles.yml
+    - /var/run/docker.sock:/var/run/docker.sock    # DockerOperator needs this
+
+  user: "${AIRFLOW_UID:-50000}:0"
+  depends_on:
+    postgres:
+      condition: service_healthy
+
+services:
+
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    volumes:
+      - postgres-db-volume:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "airflow"]
+      interval: 10s
+      retries: 5
+      start_period: 5s
+    restart: always
+
+  airflow-webserver:
+    <<: *airflow-common
+    command: webserver
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: always
+
+  airflow-scheduler:
+    <<: *airflow-common
+    command: scheduler
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: always
+
+  airflow-init:
+    <<: *airflow-common
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - |
+        airflow db migrate
+        airflow users create \
+          --username admin \
+          --password admin \
+          --firstname Admin \
+          --lastname User \
+          --role Admin \
+          --email admin@example.com
+    environment:
+      <<: *airflow-env
+      _AIRFLOW_DB_MIGRATE: "true"
+      _AIRFLOW_WWW_USER_CREATE: "true"
+
+volumes:
+  postgres-db-volume:
