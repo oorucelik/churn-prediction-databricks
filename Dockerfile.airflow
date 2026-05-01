@@ -1,0 +1,19 @@
+FROM apache/airflow:2.10.4-python3.11
+
+# Step 1: Upgrade pip to avoid legacy resolver limitations
+RUN pip install --upgrade pip
+
+# Step 2: Pin the shared transitive dependency explicitly so the resolver
+#         doesn't have to discover it — both dbt-databricks>=1.10 and
+#         apache-airflow-providers-databricks>=7.0 require connector>=4.0.0
+RUN pip install --no-cache-dir "databricks-sql-connector>=4.0.0,<5.0.0"
+
+# Step 3: Install dbt layer
+RUN pip install --no-cache-dir \
+    dbt-databricks==1.10.2
+
+# Step 4: Install Airflow providers and Cosmos
+RUN pip install --no-cache-dir \
+    astronomer-cosmos==1.8.0 \
+    apache-airflow-providers-docker==3.14.0 \
+    apache-airflow-providers-databricks==7.0.0
