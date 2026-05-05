@@ -10,6 +10,7 @@ x-airflow-common: &airflow-common
   build:
     context: .
     dockerfile: Dockerfile.airflow
+  
   environment: &airflow-env
     AIRFLOW__CORE__EXECUTOR: LocalExecutor
     AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
@@ -29,6 +30,9 @@ x-airflow-common: &airflow-common
     DBT_DATABRICKS_HOST: ${DATABRICKS_HOST}
     DBT_DATABRICKS_HTTP_PATH: ${DATABRICKS_HTTP_PATH}
     DBT_DATABRICKS_TOKEN: ${DATABRICKS_TOKEN}
+    
+    # ── Host path (for DockerOperator bind mounts) ─────────────────────────────
+    HOST_PROJECT_PATH: ${HOST_PROJECT_PATH}
 
   volumes:
     - ./dags:/opt/airflow/dags                     # DAG files
@@ -38,6 +42,7 @@ x-airflow-common: &airflow-common
     - ./macros:/opt/airflow/dbt/macros             # dbt macros
     - ./dbt_project.yml:/opt/airflow/dbt/dbt_project.yml
     - ./profiles.yml:/opt/airflow/dbt/profiles.yml
+    - ./packages.yml:/opt/airflow/dbt/packages.yml   # needed for dbt deps → dbt_utils
     - /var/run/docker.sock:/var/run/docker.sock    # DockerOperator needs this
 
   user: "${AIRFLOW_UID:-50000}:0"
@@ -85,6 +90,7 @@ services:
       retries: 5
       start_period: 30s
     restart: always
+
 
   airflow-init:
     <<: *airflow-common
