@@ -37,7 +37,8 @@ from cosmos.constants import ExecutionMode
 DBT_PROJECT_PATH   = "/opt/airflow/dbt"
 DBT_PROFILES_PATH  = "/opt/airflow/dbt"
 FETCH_TMDB_IMAGE   = "fetch_tmdb:latest"   # built locally in Phase 1
-
+HOST_PROJECT_PATH = os.environ.get("HOST_PROJECT_PATH", "/tmp")
+HOST_SEEDS_PATH = os.path.join(HOST_PROJECT_PATH, "seeds")
 DEFAULT_ARGS = {
     "owner":            "data-engineering",
     "retries":          2,
@@ -47,15 +48,18 @@ DEFAULT_ARGS = {
 
 # ── Profile Config (cosmos → dbt-databricks) ──────────────────────────────────
 
+# DBT_USER is set in docker-compose.yml → schema becomes e.g. "dbt_ocelik"
+#_dbt_user = os.environ.get("DBT_USER", "airflow")
+
 profile_config = ProfileConfig(
     profile_name="tmdb_churn",
     target_name="dev",                      # switch to "prod" for production runs
     profile_mapping=DatabricksTokenProfileMapping(
         conn_id="databricks_default",
         profile_args={
-            "catalog":    "prod",
-            "schema":     "dbt_{{ var.value.get('dbt_user', 'airflow') }}",
-            "http_path":  os.environ.get("DBT_DATABRICKS_HTTP_PATH", ""),
+            "catalog":   "prod",
+            "schema":    f"dbo_marts",
+            "http_path": os.environ.get("DBT_DATABRICKS_HTTP_PATH", ""),
         },
     ),
 )
@@ -65,8 +69,8 @@ profile_config = ProfileConfig(
 with DAG(
     dag_id="churn_pipeline",
     description="Daily: TMDB ingest → dbt build → XGBoost training",
-    schedule="0 2 * * *",              # 02:00 UTC daily
-    start_date=datetime(2026, 4, 1),
+    schedule="0 23 * * *",              # 02:00 GMT+3 daily
+    start_date=datetime(2026, 5, 4),
     catchup=False,
     default_args=DEFAULT_ARGS,
     tags=["churn", "tmdb", "dbt", "databricks"],
@@ -80,7 +84,7 @@ with DAG(
     fetch_tmdb = DockerOperator(
         task_id="fetch_tmdb_content",
         image=FETCH_TMDB_IMAGE,
-        # Pass secrets from Airflow env (loaded via docker-compose .env.docker)
+        # Pass secrets from Airflow env (loaded via docker-compose .env)
         environment={
             "TMDB_ACCESS_TOKEN":    os.environ.get("TMDB_ACCESS_TOKEN", ""),
             "DATABRICKS_HOST":      os.environ.get("DATABRICKS_HOST", ""),
@@ -94,8 +98,8 @@ with DAG(
         # Mount seeds dir so CSVs are available to dbt seeds
         mounts=[
             Mount(
-                source="/opt/airflow/dbt/seeds",   # inside Airflow container (already mounted)
-                target="/app/seeds",               # inside fetch_tmdb container
+                source=HOST_SEEDS_PATH,           # host path, e.g. C:\Projects\tmdb-churn-prediction\seeds
+                target="/app/seeds",              # inside fetch_tmdb container
                 type="bind",
             )
         ],
@@ -114,15 +118,16 @@ with DAG(
         ),
         profile_config=profile_config,
         execution_config=ExecutionConfig(
-            execution_mode=ExecutionMode.LOCAL,    # runs dbt inside Airflow container
+            execution_mode=ExecutionMode.LOCAL,
         ),
         render_config=RenderConfig(
-            select=["path:models"],                # build all models
-            # To run only the feature store + dependencies:
-            # select=["models/marts/ml/ml_churn_feature_store+"]
+            load_method=LoadMode.CUSTOM,
+            select=["path:models"],
+            dbt_executable_path="/home/airflow/.local/bin/dbt",
+            enable_mock_profile=True,
         ),
         operator_args={
-            "install_deps": True,                 # runs `dbt deps` before build
+            "install_deps": True,
         },
     )
 
