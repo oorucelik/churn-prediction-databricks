@@ -79,7 +79,7 @@ tmdb-churn-prediction/
 
 ## Pipeline Overview
 
-The Airflow DAG (`churn_pipeline`) runs daily at 02:00 GMT+3 and executes three stages:
+The Airflow DAG (`churn_pipeline`) runs daily at 02:00 UTC and executes three stages:
 
 ### Stage 1 — Ingestion (`DockerOperator`)
 A containerized Python script (`fetch_tmdb.py`) that:
