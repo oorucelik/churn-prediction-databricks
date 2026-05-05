@@ -30,7 +30,7 @@ from docker.types import Mount
 
 from cosmos import DbtTaskGroup, ProjectConfig, ProfileConfig, ExecutionConfig, RenderConfig
 from cosmos.profiles import DatabricksTokenProfileMapping
-from cosmos.constants import ExecutionMode
+from cosmos.constants import ExecutionMode, LoadMode
 
 # ── Constants ─────────────────────────────────────────────────────────────────
 
