@@ -30,7 +30,7 @@ from docker.types import Mount
 
 from cosmos import DbtTaskGroup, ProjectConfig, ProfileConfig, ExecutionConfig, RenderConfig
 from cosmos.profiles import DatabricksTokenProfileMapping
-from cosmos.constants import ExecutionMode
+from cosmos.constants import ExecutionMode, LoadMode
 
 # ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -49,13 +49,13 @@ DEFAULT_ARGS = {
 
 profile_config = ProfileConfig(
     profile_name="tmdb_churn",
-    target_name="dev",                      # switch to "prod" for production runs
+    target_name="dev",
     profile_mapping=DatabricksTokenProfileMapping(
         conn_id="databricks_default",
         profile_args={
-            "catalog":    "prod",
-            "schema":     "dbt_{{ var.value.get('dbt_user', 'airflow') }}",
-            "http_path":  os.environ.get("DBT_DATABRICKS_HTTP_PATH", ""),
+            "catalog":   "prod",
+            "schema":    "dbo_marts",
+            "http_path": os.environ.get("DBT_DATABRICKS_HTTP_PATH", ""),
         },
     ),
 )
@@ -114,15 +114,13 @@ with DAG(
         ),
         profile_config=profile_config,
         execution_config=ExecutionConfig(
-            execution_mode=ExecutionMode.LOCAL,    # runs dbt inside Airflow container
+            execution_mode=ExecutionMode.LOCAL # runs dbt inside Airflow container
         ),
         render_config=RenderConfig(
-            select=["path:models"],                # build all models
-            # To run only the feature store + dependencies:
-            # select=["models/marts/ml/ml_churn_feature_store+"]
+            select=["path:models"] #build all models
         ),
         operator_args={
-            "install_deps": True,                 # runs `dbt deps` before build
+            "install_deps": True #runs `dbt deps` before build
         },
     )
 
@@ -136,7 +134,7 @@ with DAG(
             "catalog": "prod",
             "schema":  "dbo_marts",
         },
-        wait_for_termination=True,     # block until notebook finishes
+        wait_for_termination=True, # block until notebook finishes
         polling_period_seconds=30,
     )
 
