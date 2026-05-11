@@ -53,12 +53,12 @@ DEFAULT_ARGS = {
 
 profile_config = ProfileConfig(
     profile_name="tmdb_churn",
-    target_name="dev",                      # switch to "prod" for production runs
+    target_name="prod",                      # switch to "prod" for production runs
     profile_mapping=DatabricksTokenProfileMapping(
         conn_id="databricks_default",
         profile_args={
             "catalog":   "prod",
-            "schema":    f"dbo_marts",
+            "schema":    "dbo",             # base prefix → macro produces dbo_staging, dbo_marts, etc.
             "http_path": os.environ.get("DBT_DATABRICKS_HTTP_PATH", ""),
         },
     ),
