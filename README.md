@@ -4,24 +4,7 @@ An end-to-end data engineering project that ingests content data from the TMDB A
 
 ## Architecture
 
-```mermaid
-graph LR
-    A[TMDB API] --> B[fetch_tmdb Container]
-    B --> C[Databricks Unity Catalog<br/>prod.dbo_raw]
-    B -->|CSVs| D[dbt Seeds]
-    D --> E[dbt Staging]
-    C --> E
-    E --> F[dbt Marts<br/>Kimball Star Schema]
-    F --> G[ML Feature Store<br/>56 features per customer]
-    G --> H[XGBoost Training<br/>Databricks + MLflow]
-
-    style A fill:#01b4e4,color:#fff
-    style B fill:#2d3748,color:#fff
-    style C fill:#ff3621,color:#fff
-    style F fill:#4caf50,color:#fff
-    style G fill:#9c27b0,color:#fff
-    style H fill:#ff9800,color:#fff
-```
+![architecture](https://github.com/oorucelik/churn-prediction-databricks/blob/main/screenshots/architecture.png?raw=true)
 
 ## Tech Stack
 
