@@ -86,8 +86,10 @@ watch_features as (
         round(avg(completion_percentage), 2) as avg_completion_pct,
         sum(case when engagement_level = 'completed' then 1 else 0 end) as completed_count,
         sum(case when engagement_level = 'abandoned' then 1 else 0 end) as abandoned_count,
-        round(sum(case when engagement_level = 'completed' then 1 else 0 end) * 1.0 / nullif(count(*), 0), 2) as completion_rate,
-        round(sum(case when engagement_level = 'abandoned' then 1 else 0 end) * 1.0 / nullif(count(*), 0), 2) as abandonment_rate,
+        round(sum(case when engagement_level = 'completed' then 1 else 0 end) 
+        * 1.0 / nullif(count(*), 0), 2) as completion_rate,
+        round(sum(case when engagement_level = 'abandoned' then
+        1 else 0 end) * 1.0 / nullif(count(*), 0), 2) as abandonment_rate,
 
         -- Resume behavior (re-engagement signal)
         sum(case when is_resumed then 1 else 0 end) as resumed_count,
@@ -129,8 +131,9 @@ watch_recent as (
 
         -- Trend: 7d vs 30d ratio (declining = churn risk)
         round(case 
-            when sum(case when date_day >= dateadd(day, -30, current_date()) then 1 else 0 end) > 0
-            then sum(case when date_day >= dateadd(day, -7, current_date()) then 1 else 0 end) * 1.0 / (sum(case when date_day >= dateadd(day, -30, current_date()) then 1 else 0 end) / 4.28)
+            when sum(case when date_day >= dateadd(day, -30, current_date()) then 1 else 0 end) > 0 
+            then sum(case when date_day >= dateadd(day, -7, current_date()) then 1 else 0 end) * 1.0 
+            /(sum(case when date_day >= dateadd(day, -30, current_date()) then 1 else 0 end) / 4.28)
             else null
         end, 2) as watch_trend_7d_vs_30d
 
@@ -140,25 +143,25 @@ watch_recent as (
 
 -- 4. SUBSCRIPTION HISTORY FEATURES (from fct_subscription_event)
 subscription_features as (
-    select
-        customer_key,
+select
+    customer_key,
 
-        count(*) as total_subscription_events,
-        sum(case when event_type = 'upgrade' then 1 else 0 end) as upgrade_count,
-        sum(case when event_type = 'downgrade' then 1 else 0 end) as downgrade_count,
-        sum(case when event_type = 'cancel' then 1 else 0 end) as cancel_count,
+    count(*) as total_subscription_events,
+    sum(case when event_type = 'upgrade' then 1 else 0 end) as upgrade_count,
+    sum(case when event_type = 'downgrade' then 1 else 0 end) as downgrade_count,
+    sum(case when event_type = 'cancel' then 1 else 0 end) as cancel_count,
 
-        -- Net plan direction (positive = upgrading, negative = downgrading)
-        sum(case when event_type = 'upgrade' then 1 else 0 end)
-            - sum(case when event_type = 'downgrade' then 1 else 0 end) as net_plan_changes,
+    -- Net plan direction (positive = upgrading, negative = downgrading)
+    sum(case when event_type = 'upgrade' then 1 else 0 end) 
+    - sum(case when event_type = 'downgrade' then 1 else 0 end) as net_plan_changes,
 
-        -- Had a downgrade (binary — strong churn signal)
-        max(case when event_type = 'downgrade' then 1 else 0 end) as has_downgraded
+    -- Had a downgrade (binary — strong churn signal)
+    max(case when event_type = 'downgrade' then 1 else 0 end) as has_downgraded
 
-        -- Note: current_revenue omitted — monthly_revenue already in dim_customer
+    -- Note: current_revenue omitted — monthly_revenue already in dim_customer
 
-    from {{ ref('fct_subscription_event') }}
-    group by customer_key
+from {{ ref('fct_subscription_event') }}
+group by customer_key
 ),
 
 -- 5. SUPPORT INTERACTION FEATURES (from fct_support_interaction)
