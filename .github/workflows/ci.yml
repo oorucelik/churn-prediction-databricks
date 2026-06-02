@@ -33,7 +33,7 @@ jobs:
         env:
           DBT_DATABRICKS_HOST: placeholder
           DBT_DATABRICKS_HTTP_PATH: placeholder
-          DBT_DATABRICKS_TOKEN: placeholder
+          DBT_ENV_SECRET_DATABRICKS_TOKEN: placeholder
         run: dbt parse --profiles-dir . --project-dir .
 
       - name: SQLFluff lint
