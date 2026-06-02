@@ -46,8 +46,8 @@ final as (
 
         -- Session duration bucket
         case
-            when we.watch_duration_minutes <= 15  then 'short'
-            when we.watch_duration_minutes <= 60  then 'medium'
+            when we.watch_duration_minutes <= 15 then 'short'
+            when we.watch_duration_minutes <= 60 then 'medium'
             when we.watch_duration_minutes <= 120 then 'long'
             else 'binge'
         end as session_duration_bucket

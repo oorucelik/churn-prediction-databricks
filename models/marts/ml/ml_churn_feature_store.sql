@@ -1,6 +1,6 @@
 -- marts/ml/ml_churn_feature_store.sql
 -- ML-ready feature table: one row per customer with 50+ engineered features.
--- Consumed by the XGBoost churn prediction model for both batch and near-real-time scoring.
+--Consumed by the XGBoost prediction model — both batch and real-time scoring.
 -- All features are numeric or encoded — no raw strings.
 
 {{ config(materialized='table') }}
@@ -25,40 +25,40 @@ with customer_features as (
             when '25-34' then 2
             when '35-44' then 3
             when '45-54' then 4
-            when '55+'   then 5
+            when '55+' then 5
         end as age_band_encoded,
 
         -- Plan encoding (ordinal — higher = more expensive)
         case plan_type
-            when 'basic'    then 1
+            when 'basic' then 1
             when 'standard' then 2
-            when 'premium'  then 3
+            when 'premium' then 3
         end as plan_type_encoded,
         monthly_revenue,
 
         -- Acquisition channel encoding
         case acquisition_channel
-            when 'organic'     then 1
-            when 'referral'    then 2
+            when 'organic' then 1
+            when 'referral' then 2
             when 'paid_search' then 3
-            when 'social'      then 4
-            when 'tv_ad'       then 5
+            when 'social' then 4
+            when 'tv_ad' then 5
         end as acquisition_channel_encoded,
 
         -- Device encoding
         case device_type
-            when 'smart_tv'       then 1
-            when 'desktop'        then 2
-            when 'mobile'         then 3
-            when 'tablet'         then 4
+            when 'smart_tv' then 1
+            when 'desktop' then 2
+            when 'mobile' then 3
+            when 'tablet' then 4
             when 'gaming_console' then 5
         end as device_type_encoded,
 
         -- Activity level encoding
         case activity_level
-            when 'low'    then 1
+            when 'low' then 1
             when 'medium' then 2
-            when 'high'   then 3
+            when 'high' then 3
         end as activity_level_encoded
 
     from {{ ref('dim_customer') }}
@@ -86,15 +86,12 @@ watch_features as (
         round(avg(completion_percentage), 2) as avg_completion_pct,
         sum(case when engagement_level = 'completed' then 1 else 0 end) as completed_count,
         sum(case when engagement_level = 'abandoned' then 1 else 0 end) as abandoned_count,
-        round(sum(case when engagement_level = 'completed' then 1 else 0 end) * 1.0
-            / nullif(count(*), 0), 2) as completion_rate,
-        round(sum(case when engagement_level = 'abandoned' then 1 else 0 end) * 1.0
-            / nullif(count(*), 0), 2) as abandonment_rate,
+        round(sum(case when engagement_level = 'completed' then 1 else 0 end) * 1.0 / nullif(count(*), 0), 2) as completion_rate,
+        round(sum(case when engagement_level = 'abandoned' then 1 else 0 end) * 1.0 / nullif(count(*), 0), 2) as abandonment_rate,
 
         -- Resume behavior (re-engagement signal)
         sum(case when is_resumed then 1 else 0 end) as resumed_count,
-        round(sum(case when is_resumed then 1 else 0 end) * 1.0
-            / nullif(count(*), 0), 2) as resume_rate,
+        round(sum(case when is_resumed then 1 else 0 end) * 1.0 / nullif(count(*), 0), 2) as resume_rate,
 
         -- Session type distribution
         sum(case when session_duration_bucket = 'binge' then 1 else 0 end) as binge_session_count,
@@ -131,10 +128,9 @@ watch_recent as (
             as watch_minutes_last_30d,
 
         -- Trend: 7d vs 30d ratio (declining = churn risk)
-        round(case
+        round(case 
             when sum(case when date_day >= dateadd(day, -30, current_date()) then 1 else 0 end) > 0
-            then sum(case when date_day >= dateadd(day, -7, current_date()) then 1 else 0 end) * 1.0
-                 / (sum(case when date_day >= dateadd(day, -30, current_date()) then 1 else 0 end) / 4.28)
+            then sum(case when date_day >= dateadd(day, -7, current_date()) then 1 else 0 end) * 1.0 / (sum(case when date_day >= dateadd(day, -30, current_date()) then 1 else 0 end) / 4.28)
             else null
         end, 2) as watch_trend_7d_vs_30d
 
@@ -142,9 +138,7 @@ watch_recent as (
     group by customer_key
 ),
 
--- ═══════════════════════════════════════════════════════════════
 -- 4. SUBSCRIPTION HISTORY FEATURES (from fct_subscription_event)
--- ═══════════════════════════════════════════════════════════════
 subscription_features as (
     select
         customer_key,
@@ -167,9 +161,7 @@ subscription_features as (
     group by customer_key
 ),
 
--- ═══════════════════════════════════════════════════════════════
 -- 5. SUPPORT INTERACTION FEATURES (from fct_support_interaction)
--- ═══════════════════════════════════════════════════════════════
 support_features as (
     select
         customer_key,
@@ -203,9 +195,7 @@ support_features as (
     group by customer_key
 ),
 
--- ═══════════════════════════════════════════════════════════════
 -- 6. RATING BEHAVIOR FEATURES (from stg_user_ratings)
--- ═══════════════════════════════════════════════════════════════
 rating_features as (
     select
         c.customer_key,
@@ -321,9 +311,9 @@ final as (
         -- Engagement decay risk (higher = more at risk)
         case
             when coalesce(wf.days_since_last_watch, 9999) >= 14 then 5
-            when coalesce(wf.days_since_last_watch, 9999) >= 7  then 4
-            when coalesce(wf.days_since_last_watch, 9999) >= 3  then 3
-            when coalesce(wf.days_since_last_watch, 9999) >= 1  then 2
+            when coalesce(wf.days_since_last_watch, 9999) >= 7 then 4
+            when coalesce(wf.days_since_last_watch, 9999) >= 3 then 3
+            when coalesce(wf.days_since_last_watch, 9999) >= 1 then 2
             else 1
         end as recency_risk_score,
 

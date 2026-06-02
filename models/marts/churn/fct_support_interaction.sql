@@ -30,15 +30,15 @@ final as (
 
         -- Severity classification based on resolution time
         case
-            when s.resolution_time_hours <= 4   then 'quick'
-            when s.resolution_time_hours <= 24  then 'standard'
-            when s.resolution_time_hours <= 48  then 'slow'
+            when s.resolution_time_hours <= 4 then 'quick'
+            when s.resolution_time_hours <= 24 then 'standard'
+            when s.resolution_time_hours <= 48 then 'slow'
             else 'critical'
         end as resolution_tier,
 
         -- Sentiment classification
         case
-            when s.sentiment_score >= 0.3  then 'positive'
+            when s.sentiment_score >= 0.3 then 'positive'
             when s.sentiment_score >= -0.3 then 'neutral'
             else 'negative'
         end as sentiment_tier
