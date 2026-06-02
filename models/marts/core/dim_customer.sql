@@ -1,6 +1,6 @@
 -- marts/core/dim_customer.sql
--- Customer dimension with age banding, genre preferences, and derived attributes.
--- TODO: Convert to SCD Type 2 via dbt snapshot when plan_type changes matter.
+--Customer dimension with age, genres, and derived attributes
+--TODO: Convert to SCD Type 2 via dbt snapshot when plan_type changes matter.
 
 {{ config(materialized='table') }}
 

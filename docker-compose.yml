@@ -29,7 +29,7 @@ x-airflow-common: &airflow-common
     # ── dbt profile env vars ───────────────────────────────────────────────────
     DBT_DATABRICKS_HOST: ${DATABRICKS_HOST}
     DBT_DATABRICKS_HTTP_PATH: ${DATABRICKS_HTTP_PATH}
-    DBT_DATABRICKS_TOKEN: ${DATABRICKS_TOKEN}
+    DBT_ENV_SECRET_DATABRICKS_TOKEN: ${DATABRICKS_TOKEN}
     
     # ── Host path (for DockerOperator bind mounts) ─────────────────────────────
     HOST_PROJECT_PATH: ${HOST_PROJECT_PATH}

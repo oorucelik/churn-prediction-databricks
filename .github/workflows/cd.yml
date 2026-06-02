@@ -1,0 +1,37 @@
+name: CD — Deploy to Production
+
+# Triggered on every merge to main.
+#
+# ── Option A: Hosted Airflow (e.g., MWAA, Astronomer, self-hosted VM) ──────────
+#   Add these three GitHub Secrets (Settings → Secrets and variables → Actions):
+#     AIRFLOW_URL      → https://your-airflow-host.com   (no trailing slash)
+#     AIRFLOW_USER     → admin
+#     AIRFLOW_PASSWORD → <your Airflow UI password>
+#
+# ── Option B: Local Docker Compose Airflow ──────────────────────────────────────
+#   GitHub Actions runners cannot reach localhost. Use the manual trigger instead:
+#     docker compose exec airflow-scheduler \
+#       airflow dags trigger churn_pipeline
+# ────────────────────────────────────────────────────────────────────────────────
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  trigger-dag:
+    runs-on: ubuntu-latest
+    # Skip this job if AIRFLOW_URL secret is not configured (local dev mode)
+    if: ${{ vars.AIRFLOW_DEPLOYMENT_MODE == 'hosted' }}
+    steps:
+      - name: Trigger Airflow churn_pipeline DAG
+        env:
+          AIRFLOW_URL: ${{ secrets.AIRFLOW_URL }}
+          AIRFLOW_USER: ${{ secrets.AIRFLOW_USER }}
+          AIRFLOW_PASSWORD: ${{ secrets.AIRFLOW_PASSWORD }}
+        run: |
+          curl -f -X POST \
+            "${AIRFLOW_URL}/api/v1/dags/churn_pipeline/dagRuns" \
+            -H "Content-Type: application/json" \
+            -u "${AIRFLOW_USER}:${AIRFLOW_PASSWORD}" \
+            -d '{"conf": {}}'

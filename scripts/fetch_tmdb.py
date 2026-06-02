@@ -1,7 +1,6 @@
 import os
 import requests
 import time
-import json
 import random
 import numpy as np
 import pandas as pd

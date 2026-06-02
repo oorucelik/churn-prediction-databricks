@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install ruff dbt-databricks sqlfluff sqlfluff-templater-dbt pytest pytest-mock
+
+      - name: Secret scan (fail if real token found)
+        run: |
+          if grep -rE "dapi[a-f0-9]{32}" --include="*.py" --include="*.yml" --include="*.yaml" .; then
+            echo "❌ Databricks token detected in source files!"
+            exit 1
+          fi
+
+      - name: Ruff lint
+        run: ruff check scripts/ notebooks/ dags/
+      
+      - name: dbt deps
+        env:
+          DBT_DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DBT_DATABRICKS_HTTP_PATH: ${{ secrets.DATABRICKS_HTTP_PATH }}
+          DBT_ENV_SECRET_DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+        run: dbt deps --profiles-dir . --project-dir .
+
+      - name: dbt parse (syntax check, no connection)
+        env:
+          DBT_DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DBT_DATABRICKS_HTTP_PATH: ${{ secrets.DATABRICKS_HTTP_PATH }}
+          DBT_ENV_SECRET_DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+        run: dbt parse --profiles-dir . --project-dir .
+
+      - name: SQLFluff lint
+        env:
+          DBT_DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DBT_DATABRICKS_HTTP_PATH: ${{ secrets.DATABRICKS_HTTP_PATH }}
+          DBT_ENV_SECRET_DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+        run: sqlfluff lint models/
+
+      - name: Unit tests (mocked)
+        run: pytest scripts/test_tmdb_fetch.py -v

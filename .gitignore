@@ -10,4 +10,6 @@ __pycache__/
 dbt_internal_packages/
 scripts/.cache/
 .vscode/
-*.md
+*_.md
+seeds/*.csv
+.gitignore

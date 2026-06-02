@@ -1,58 +1,36 @@
-# Databricks notebook source
-# /// script
-# [tool.databricks.environment]
-# environment_version = "5"
-# dependencies = [
-#   "-r /Workspace/Users/o.oruccelik@gmail.com/tmdb-churn-prediction/notebooks/requirements.txt",
-# ]
-# ///
-# MAGIC %md
-# MAGIC # Churn Prediction — XGBoost Training Pipeline
-# MAGIC
-# MAGIC **Source table:** `prod.dbo_marts.ml_churn_feature_store`
-# MAGIC
-# MAGIC **Pipeline:**
-# MAGIC 1. Load feature store from Unity Catalog
-# MAGIC 2. Exploratory sanity checks
-# MAGIC 3. Feature preprocessing (impute nulls, select features)
-# MAGIC 4. Train/test split (stratified)
-# MAGIC 5. Train XGBoost with cross-validation
-# MAGIC 6. Evaluate (AUC, precision, recall, feature importance)
-# MAGIC 7. Log experiment + model to MLflow
-# MAGIC 8. Register model in Unity Catalog
-
-# COMMAND ----------
-
-## 0. Config
-
-CATALOG   = "prod"
-SCHEMA    = "dbo_marts"
-TABLE     = "ml_churn_feature_store"
-FULL_TABLE = f"{CATALOG}.{SCHEMA}.{TABLE}"
-
-EXPERIMENT_NAME = "/Shared/churn-prediction"
-MODEL_NAME      = f"{CATALOG}.dbo_marts.churn_prediction"   # Unity Catalog model path
-
-# Random state — pin for reproducibility
-RANDOM_STATE = 42
-
-# COMMAND ----------
-
-## 1. Load Feature Store
-
+# Churn Prediction — XGBoost Training Pipeline
+# **Source table:** `prod.dbo_marts.ml_churn_feature_store`
+# **Pipeline:**
+# 1. Load feature store from Unity Catalog
+# 2. Exploratory sanity checks
+# 3. Feature preprocessing (impute nulls, select features)
+# 4. Train/test split (stratified)
+# 5. Train XGBoost with cross-validation
+# 6. Evaluate (AUC, precision, recall, feature importance)
+# 7. Log experiment + model to MLflow
+# 8. Register model in Unity Catalog
 import mlflow 
 import mlflow.xgboost
 import pandas as pd
-import numpy as np
 import xgboost as xgb
+import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split, StratifiedKFold, cross_val_score
 from sklearn.metrics import (
-    roc_auc_score, classification_report, confusion_matrix,
-    precision_recall_curve, average_precision_score
+    roc_auc_score, classification_report, confusion_matrix, average_precision_score
 )
-from sklearn.preprocessing import LabelEncoder
-import matplotlib.pyplot as plt
+from pyspark.sql import SparkSession
 
+spark = SparkSession.builder.appName("ChurnPrediction").getOrCreate()
+
+CATALOG         = "prod"
+SCHEMA          = "dbo_marts"
+TABLE           = "ml_churn_feature_store"
+FULL_TABLE      = f"{CATALOG}.{SCHEMA}.{TABLE}"
+EXPERIMENT_NAME = "/Shared/churn-prediction"
+MODEL_NAME      = f"{CATALOG}.dbo_marts.churn_prediction"  
+RANDOM_STATE = 42
+
+## 1. Load Feature Store
 # Load from Unity Catalog via Spark → pandas
 sdf = spark.table(FULL_TABLE)
 df  = sdf.toPandas()
@@ -61,10 +39,7 @@ print(f"Loaded {len(df):,} rows × {df.shape[1]} columns from {FULL_TABLE}")
 print(f"Churn rate: {df['target_is_churned'].mean():.1%}")
 df.head(3)
 
-# COMMAND ----------
-
 ## 2. Sanity Checks
-
 # Class balance
 print("=== Class distribution ===")
 print(df["target_is_churned"].value_counts())
@@ -79,10 +54,7 @@ if len(high_null):
 else:
     print("\n✅ No columns with >20% nulls")
 
-# COMMAND ----------
-
 ## 3. Feature Selection & Preprocessing
-
 # ── Keys and leaky columns to drop ───────────────────────────────────────────
 # target_churn_date would leak: it's only set for churned customers
 DROP_COLS = [
@@ -208,19 +180,17 @@ y_pred       = (y_pred_proba >= 0.5).astype(int)
 test_auc = roc_auc_score(y_test, y_pred_proba)
 avg_precision = average_precision_score(y_test, y_pred_proba)
 
-print(f"=== Test Set Results ===")
+print("=== Test Set Results ===")
 print(f"ROC-AUC:           {test_auc:.4f}")
 print(f"Avg Precision:     {avg_precision:.4f}")
-print(f"\nClassification Report (threshold=0.5):")
+print("\nClassification Report (threshold=0.5):")
 print(classification_report(y_test, y_pred, target_names=["Active", "Churned"]))
 
 # Confusion matrix
 cm = confusion_matrix(y_test, y_pred)
 print(f"Confusion Matrix:\n{cm}")
 
-# COMMAND ----------
-
-### Feature Importance
+# Feature Importance
 
 importance_df = pd.DataFrame({
     "feature":    FEATURES,
@@ -228,7 +198,7 @@ importance_df = pd.DataFrame({
 }).sort_values("importance", ascending=False)
 
 print("=== Top 15 Features ===")
-display(importance_df.head(15))
+print(importance_df.head(15))
 
 # Plot
 fig, ax = plt.subplots(figsize=(10, 7))
@@ -239,9 +209,7 @@ ax.set_title("XGBoost — Top 15 Churn Predictors")
 plt.tight_layout()
 plt.show()
 
-# COMMAND ----------
-
-## 7. Log to MLflow
+# Log to MLflow
 mlflow.set_experiment(EXPERIMENT_NAME)
 
 with mlflow.start_run(run_name="xgboost-churn-v1") as run:
@@ -276,9 +244,7 @@ with mlflow.start_run(run_name="xgboost-churn-v1") as run:
     print(f"   Experiment: {EXPERIMENT_NAME}")
     print(f"   Model registered as: {MODEL_NAME}")
 
-# COMMAND ----------
-
-## 8. Inference Preview
+# 8. Inference Preview
 
 #Score the full dataset — useful for inspecting high-risk customers.
 
@@ -299,8 +265,5 @@ high_risk_cols = [
     "days_since_last_watch", "has_downgraded",
     "heuristic_churn_risk_score", "negative_ticket_count",
 ]
-display(
-    df[high_risk_cols]
-    .sort_values("churn_probability", ascending=False)
-    .head(10)
-)
+
+print(df[high_risk_cols].sort_values("churn_probability", ascending=False).head(10))

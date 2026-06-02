@@ -33,9 +33,9 @@ final as (
         -- Revenue change direction
         case
             when se.event_type = 'subscribe' then 'new'
-            when se.event_type = 'upgrade'   then 'expansion'
+            when se.event_type = 'upgrade' then 'expansion'
             when se.event_type = 'downgrade' then 'contraction'
-            when se.event_type = 'cancel'    then 'churned'
+            when se.event_type = 'cancel' then 'churned'
             else 'other'
         end as revenue_category,
 
