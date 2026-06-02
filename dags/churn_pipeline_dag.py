@@ -25,7 +25,6 @@ from airflow import DAG
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.docker.operators.docker import DockerOperator
 from airflow.providers.databricks.operators.databricks import DatabricksRunNowOperator
-from airflow.models import Variable
 from docker.types import Mount
 
 from cosmos import DbtTaskGroup, ProjectConfig, ProfileConfig, ExecutionConfig, RenderConfig
