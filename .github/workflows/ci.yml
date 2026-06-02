@@ -44,7 +44,11 @@ jobs:
         run: dbt parse --profiles-dir . --project-dir .
 
       - name: SQLFluff lint
-        run: sqlfluff lint models/ --dialect databricks --templater dbt
+        env:
+          DBT_DATABRICKS_HOST: placeholder
+          DBT_DATABRICKS_HTTP_PATH: placeholder
+          DBT_ENV_SECRET_DATABRICKS_TOKEN: placeholder
+        run: sqlfluff lint models/
 
       - name: Unit tests (mocked)
         run: pytest scripts/test_tmdb_fetch.py -v

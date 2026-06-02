@@ -1,0 +1,9 @@
+[sqlfluff]
+dialect = databricks
+templater = dbt
+
+[sqlfluff:templater:dbt]
+profiles_dir = .
+project_dir = .
+profile = churn_pipeline
+target = dev
