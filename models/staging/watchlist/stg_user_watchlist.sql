@@ -7,14 +7,14 @@ with source as (
 ),
 
 renamed as (
-select
-    {{dbt_utils.generate_surrogate_key(['watchlist_id'])}} as watchlist_key,
-    watchlist_id,
-    customer_id,
-    content_id,
-    cast(added_at as date) as added_at,
-    cast(is_watched as boolean) as is_watched
-from source
+    select
+        {{ dbt_utils.generate_surrogate_key(['watchlist_id']) }} as watchlist_key,
+        watchlist_id,
+        customer_id,
+        content_id,
+        cast(added_at as date) as added_at,
+        cast(is_watched as boolean) as is_watched
+    from source
 )
 
 select * from renamed

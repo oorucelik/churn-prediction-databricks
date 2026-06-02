@@ -7,5 +7,3 @@ profiles_dir = .
 project_dir = .
 profile = churn_pipeline
 target = dev
-
-exclude_rules = layout.long_lines,layout.indent
