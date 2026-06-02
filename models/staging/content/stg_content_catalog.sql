@@ -2,12 +2,13 @@
 -- Content catalog from TMDB API (movies & TV shows).
 -- Splits pipe-delimited genres into primary_genre for joins.
 
-{{config(materialized='table')}}
+{{ config(materialized='table') }}
 
 with content as (
-    select *,
+    select
+        *,
         row_number() over (partition by content_id order by content_id desc) as rn
-    from {{source('tmdb_api__content_catalog', 'raw_content_catalog')}}
+    from {{ source('tmdb_api__content_catalog', 'raw_content_catalog') }}
 ),
 
 renamed as (
@@ -17,7 +18,7 @@ renamed as (
         try_cast(tmdb_id as integer) as tmdb_id,
         title,
         content_type,
-        genres as genre_list,       -- pipe-delimited, keep for exploding later
+        genres as genre_list,
         primary_genre,
         try_cast(release_date as date) as release_date,
         try_cast(vote_average as decimal(3,1)) as vote_average,

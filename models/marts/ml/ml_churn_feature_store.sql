@@ -128,10 +128,10 @@ watch_recent as (
             as watch_minutes_last_30d,
 
         -- Trend: 7d vs 30d ratio (declining = churn risk)
-        round(case 
+        round(
+        case 
             when sum(case when date_day >= dateadd(day, -30, current_date()) then 1 else 0 end) > 0
             then sum(case when date_day >= dateadd(day, -7, current_date()) then 1 else 0 end) * 1.0 / (sum(case when date_day >= dateadd(day, -30, current_date()) then 1 else 0 end) / 4.28)
-            else null
         end, 2) as watch_trend_7d_vs_30d
 
     from {{ ref('fct_watch_event') }}
