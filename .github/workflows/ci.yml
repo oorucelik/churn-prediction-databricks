@@ -48,7 +48,9 @@ jobs:
           DBT_DATABRICKS_HOST: placeholder
           DBT_DATABRICKS_HTTP_PATH: placeholder
           DBT_ENV_SECRET_DATABRICKS_TOKEN: placeholder
-        run: sqlfluff lint models/
+        run: |
+          sed -i 's/target = dev/target = ci/g' .sqlfluff
+          sqlfluff lint models/
 
       - name: Unit tests (mocked)
         run: pytest scripts/test_tmdb_fetch.py -v

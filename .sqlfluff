@@ -7,4 +7,5 @@ exclude_rules = layout.long_lines,layout.indent,layout.spacing,structure.column_
 profiles_dir = .
 project_dir = .
 profile = churn_pipeline
-target = ci
+target = dev
+    
