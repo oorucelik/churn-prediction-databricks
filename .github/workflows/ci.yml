@@ -17,7 +17,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install ruff dbt-databricks sqlfluff pytest pytest-mock
+          pip install ruff dbt-databricks sqlfluff sqlfluff-templater-dbt pytest pytest-mock
 
       - name: Secret scan (fail if real token found)
         run: |
