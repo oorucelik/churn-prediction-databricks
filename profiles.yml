@@ -9,6 +9,11 @@ churn_pipeline:
       http_path: "{{env_var('DBT_DATABRICKS_HTTP_PATH', '/sql/1.0/warehouses/35f22ecad1c625f5')}}"
       token: "{{env_var('DBT_ENV_SECRET_DATABRICKS_TOKEN')}}"
 
+    ci:
+      type: spark
+      method: session
+      schema: dev_ocelik
+
     prod:
       type: databricks
       catalog: prod
