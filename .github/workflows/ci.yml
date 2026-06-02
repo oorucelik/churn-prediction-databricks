@@ -28,6 +28,13 @@ jobs:
 
       - name: Ruff lint
         run: ruff check scripts/ notebooks/ dags/
+      
+      - name: dbt deps
+        env:
+          DBT_DATABRICKS_HOST: placeholder
+          DBT_DATABRICKS_HTTP_PATH: placeholder
+          DBT_ENV_SECRET_DATABRICKS_TOKEN: placeholder
+        run: dbt deps --profiles-dir . --project-dir .
 
       - name: dbt parse (syntax check, no connection)
         env:
